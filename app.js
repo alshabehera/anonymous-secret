@@ -3,8 +3,10 @@ import 'dotenv/config.js';
 import express from "express";
 import bodyParser from "body-parser";
 import mongoose from "mongoose";
-import encrypt from "mongoose-encryption";
-
+//import encrypt from "mongoose-encryption";
+//import md5 from 'md5';
+import bcrypt from 'bcrypt';
+const saltRounds = 10;
 
 const app=express();
 app.set('view engine', 'ejs');
@@ -20,8 +22,8 @@ const userSchema= new mongoose.Schema({
 });
 
 
-console.log(process.env.SECRET);
-userSchema.plugin(encrypt, {secret:process.env.SECRET, encryptedFields: ['password'] });
+//console.log(process.env.SECRET);
+//userSchema.plugin(encrypt, {secret:process.env.SECRET, encryptedFields: ['password'] });
 const User= new mongoose.model("User",userSchema);
 
 
@@ -38,30 +40,45 @@ app.get("/register",(req,res)=>{
 });
 
 app.post("/register",async(req,res)=>{
-try{const username=req.body.username;
-const password=req.body.password;
-const newUser= new User({
-    username:username,
-    password:password,
-})
-await newUser.save();
-res.render("login.ejs");}
-catch(err){
-    console.log(err);
-}
+bcrypt.hash(req.body.password, saltRounds, function(err, hash) {
+    try{const username=req.body.username;
+        const password=hash;
+        const newUser= new User({
+            username:username,
+            password:password,
+        })
+         newUser.save();
+        res.render("login.ejs");}
+        catch(err){
+            console.log(err);
+        }
+        
+    
+});
 
-//console.log(username);
 });
 
 app.post("/login",async(req,res)=>{
     try{
         const username=req.body.username;
         const password=req.body.password;
+        
         const user=await User.findOne({username:username});
         if(user){
-            if(user.password===password){
-                res.render("secrets.ejs");
-            }
+           
+            //if(user.password===password){
+                bcrypt.compare(req.body.password, user.password, function(err, result) {
+                   
+                    if(result == true){
+                         res.render("secrets.ejs");
+                    }
+                 else {
+                    console.log("Password Did Not Match");
+                    res.send("Incorrect Password");
+                }
+                });
+               
+            //}
         }
     }
     catch(err){
